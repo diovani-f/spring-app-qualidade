@@ -4,4 +4,5 @@ import com.facco.firsting_spring_app.model.Locacao;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface LocacaoRepository extends JpaRepository<Locacao, Long> {
+    boolean existsByVeiculoId(Long veiculoId);
 }
