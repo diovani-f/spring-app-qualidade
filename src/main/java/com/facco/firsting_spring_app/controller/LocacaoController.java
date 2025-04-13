@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDate;
+import java.time.Period;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/locacoes")
@@ -39,13 +42,39 @@ public class LocacaoController {
     }
 
     @PostMapping
-    public ResponseEntity<?> criar(@RequestBody Locacao locacao) {
-        Optional<Cliente> cliente = clienteRepository.findById(locacao.getCliente().getId());
-        Optional<Veiculo> veiculo = veiculoRepository.findById(locacao.getVeiculo().getId());
+    public ResponseEntity<?> criar(@RequestBody com.facco.firsting_spring_app.dto.LocacaoDTO dto) {
+        Optional<Cliente> clienteOpt = clienteRepository.findById(dto.getCliente());
+        Optional<Veiculo> veiculoOpt = veiculoRepository.findById(dto.getVeiculo());
 
-        if (cliente.isPresent() && veiculo.isPresent()) {
-            locacao.setCliente(cliente.get());
-            locacao.setVeiculo(veiculo.get());
+        if (clienteOpt.isPresent() && veiculoOpt.isPresent()) {
+            Cliente cliente = clienteOpt.get();
+
+            if (cliente.getDataNascimento() == null) {
+                return ResponseEntity.badRequest().body("Data de nascimento do cliente não informada.");
+            }
+
+            int idade = Period.between(cliente.getDataNascimento(), LocalDate.now()).getYears();
+            if (idade < 18) {
+                return ResponseEntity.badRequest().body("Cliente deve ter pelo menos 18 anos para alugar um veículo.");
+            }
+
+            if (locacaoRepository.clientePossuiLocacaoAtiva(cliente.getId())) {
+                return ResponseEntity.badRequest().body("Cliente já possui uma locação ativa.");
+            }
+
+            long devolucoesAtrasadas = locacaoRepository.contarDevolucoesAtrasadas(cliente.getId());
+            if (devolucoesAtrasadas > 4) {
+                return ResponseEntity.badRequest().body("Cliente bloqueado por mais de 4 devoluções atrasadas.");
+            }
+
+            // Criar e preencher a entidade Locacao
+            Locacao locacao = new Locacao();
+            locacao.setCliente(cliente);
+            locacao.setVeiculo(veiculoOpt.get());
+            locacao.setDataRetirada(dto.getDataRetirada());
+            locacao.setDataPrevistaDevolucao(dto.getDataPrevistaDevolucao());
+            locacao.setKmInicial(dto.getKmInicial());
+
             return ResponseEntity.ok(locacaoRepository.save(locacao));
         }
 
