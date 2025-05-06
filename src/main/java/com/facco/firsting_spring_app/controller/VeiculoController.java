@@ -1,8 +1,9 @@
 package com.facco.firsting_spring_app.controller;
 
 import com.facco.firsting_spring_app.model.Veiculo;
-import com.facco.firsting_spring_app.repository.VeiculoRepository;
+import com.facco.firsting_spring_app.service.VeiculoService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,57 +15,69 @@ import java.util.Optional;
 public class VeiculoController {
 
     @Autowired
-    private VeiculoRepository veiculoRepository;
+    private VeiculoService veiculoService;
 
-    // Listar todos
-    @GetMapping
-    public List<Veiculo> listarTodos() {
-        return veiculoRepository.findAll();
-    }
-
-    // Criar novo
     @PostMapping
-    public Veiculo criar(@RequestBody Veiculo veiculo) {
-        return veiculoRepository.save(veiculo);
+    public ResponseEntity<?> adicionarVeiculo(@RequestBody Veiculo veiculo) {
+        String erro = validarVeiculo(veiculo);
+        if (erro != null) {
+            return new ResponseEntity<>(erro, HttpStatus.BAD_REQUEST);
+        }
+
+        Veiculo veiculoSalvo = veiculoService.salvarVeiculo(veiculo);
+        return new ResponseEntity<>(veiculoSalvo, HttpStatus.CREATED);
     }
 
-    // Buscar por ID
+    @GetMapping
+    public List<Veiculo> listarVeiculos() {
+        return veiculoService.listarVeiculos();
+    }
+
     @GetMapping("/{id}")
-    public ResponseEntity<Veiculo> buscarPorId(@PathVariable Long id) {
-        Optional<Veiculo> veiculo = veiculoRepository.findById(id);
-        return veiculo.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Veiculo> buscarVeiculoPorId(@PathVariable Long id) {
+        Optional<Veiculo> veiculo = veiculoService.buscarVeiculoPorId(id);
+        return veiculo.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // Atualizar
     @PutMapping("/{id}")
-    public ResponseEntity<Veiculo> atualizar(@PathVariable Long id, @RequestBody Veiculo novoVeiculo) {
-        Optional<Veiculo> veiculoExistente = veiculoRepository.findById(id);
-        if (veiculoExistente.isPresent()) {
-            Veiculo veiculo = veiculoExistente.get();
-            veiculo.setModelo(novoVeiculo.getModelo());
-            veiculo.setMarca(novoVeiculo.getMarca());
-            veiculo.setPlaca(novoVeiculo.getPlaca());
-            veiculo.setAno(novoVeiculo.getAno());
-            veiculo.setQuilometragem(novoVeiculo.getQuilometragem());
-            veiculo.setCor(novoVeiculo.getCor());
-            veiculo.setStatus(novoVeiculo.getStatus());
-            veiculo.setCategoria(novoVeiculo.getCategoria());
+    public ResponseEntity<?> atualizarVeiculo(@PathVariable Long id, @RequestBody Veiculo veiculo) {
+        String erro = validarVeiculo(veiculo);
+        if (erro != null) {
+            return new ResponseEntity<>(erro, HttpStatus.BAD_REQUEST);
+        }
 
-            Veiculo atualizado = veiculoRepository.save(veiculo);
-            return ResponseEntity.ok(atualizado);
-        } else {
-            return ResponseEntity.notFound().build();
+        try {
+            Veiculo veiculoAtualizado = veiculoService.atualizarVeiculo(id, veiculo);
+            return new ResponseEntity<>(veiculoAtualizado, HttpStatus.OK);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return new ResponseEntity<>("Erro ao atualizar veículo: " + e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
 
-    // Deletar
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id) {
-        if (veiculoRepository.existsById(id)) {
-            veiculoRepository.deleteById(id);
-            return ResponseEntity.noContent().build();
-        } else {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<Void> excluirVeiculo(@PathVariable Long id) {
+        try {
+            veiculoService.excluirVeiculo(id);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+    }
+
+    // Validação manual da entidade Veiculo
+    private String validarVeiculo(Veiculo veiculo) {
+        if (veiculo.getModelo() == null || veiculo.getModelo().isBlank()) {
+            return "O modelo do veículo é obrigatório";
+        }
+        if (veiculo.getCategoria() == null || veiculo.getCategoria().getId() == null) {
+            return "A categoria do veículo é obrigatória";
+        }
+        if (veiculo.getQuilometragem() == null || veiculo.getQuilometragem() < 0) {
+            return "A quilometragem deve ser maior ou igual a 0";
+        }
+        if (veiculo.getStatus() == null) {
+            return "O status do veículo é obrigatório";
+        }
+        return null;
     }
 }

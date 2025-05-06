@@ -1,15 +1,13 @@
 package com.facco.firsting_spring_app.controller;
 
 import com.facco.firsting_spring_app.model.Locacao;
-import com.facco.firsting_spring_app.repository.ClienteRepository;
-import com.facco.firsting_spring_app.repository.VeiculoRepository;
-import com.facco.firsting_spring_app.repository.LocacaoRepository;
-import com.facco.firsting_spring_app.model.Cliente;
-import com.facco.firsting_spring_app.model.Veiculo;
+import com.facco.firsting_spring_app.service.LocacaoService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,73 +16,80 @@ import java.util.Optional;
 public class LocacaoController {
 
     @Autowired
-    private LocacaoRepository locacaoRepository;
+    private LocacaoService locacaoService;
 
-    @Autowired
-    private ClienteRepository clienteRepository;
+    @PostMapping
+    public ResponseEntity<?> adicionarLocacao(@RequestBody Locacao locacao) {
+        String erro = validarLocacao(locacao);
+        if (erro != null) {
+            return new ResponseEntity<>(erro, HttpStatus.BAD_REQUEST);
+        }
 
-    @Autowired
-    private VeiculoRepository veiculoRepository;
+        try {
+            Locacao locacaoSalva = locacaoService.salvarLocacao(locacao);
+            return new ResponseEntity<>(locacaoSalva, HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
 
     @GetMapping
-    public List<Locacao> listarTodos() {
-        return locacaoRepository.findAll();
+    public List<Locacao> listarLocacoes() {
+        return locacaoService.listarLocacoes();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Locacao> buscarPorId(@PathVariable Long id) {
-        return locacaoRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    @PostMapping
-    public ResponseEntity<?> criar(@RequestBody Locacao locacao) {
-        Optional<Cliente> cliente = clienteRepository.findById(locacao.getCliente().getId());
-        Optional<Veiculo> veiculo = veiculoRepository.findById(locacao.getVeiculo().getId());
-
-        if (cliente.isPresent() && veiculo.isPresent()) {
-            locacao.setCliente(cliente.get());
-            locacao.setVeiculo(veiculo.get());
-            return ResponseEntity.ok(locacaoRepository.save(locacao));
-        }
-
-        return ResponseEntity.badRequest().body("Cliente ou veículo inválido");
+    public ResponseEntity<Locacao> buscarLocacaoPorId(@PathVariable Long id) {
+        Optional<Locacao> locacao = locacaoService.buscarLocacaoPorId(id);
+        return locacao.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> atualizar(@PathVariable Long id, @RequestBody Locacao novaLocacao) {
-        Optional<Locacao> existente = locacaoRepository.findById(id);
-        if (existente.isPresent()) {
-            Locacao locacao = existente.get();
-
-            Optional<Cliente> cliente = clienteRepository.findById(novaLocacao.getCliente().getId());
-            Optional<Veiculo> veiculo = veiculoRepository.findById(novaLocacao.getVeiculo().getId());
-
-            if (cliente.isEmpty() || veiculo.isEmpty()) {
-                return ResponseEntity.badRequest().body("Cliente ou veículo inválido");
-            }
-
-            locacao.setCliente(cliente.get());
-            locacao.setVeiculo(veiculo.get());
-            locacao.setDataRetirada(novaLocacao.getDataRetirada());
-            locacao.setDataPrevistaDevolucao(novaLocacao.getDataPrevistaDevolucao());
-            locacao.setDataRealDevolucao(novaLocacao.getDataRealDevolucao());
-            locacao.setKmInicial(novaLocacao.getKmInicial());
-            locacao.setKmFinal(novaLocacao.getKmFinal());
-            locacao.setValorTotal(novaLocacao.getValorTotal());
-
-            return ResponseEntity.ok(locacaoRepository.save(locacao));
+    public ResponseEntity<?> atualizarLocacao(@PathVariable Long id, @RequestBody Locacao locacao) {
+        String erro = validarLocacao(locacao);
+        if (erro != null) {
+            return new ResponseEntity<>(erro, HttpStatus.BAD_REQUEST);
         }
-        return ResponseEntity.notFound().build();
+
+        try {
+            Locacao locacaoAtualizada = locacaoService.atualizarLocacao(id, locacao);
+            return new ResponseEntity<>(locacaoAtualizada, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>("Locação não encontrada.", HttpStatus.NOT_FOUND);
+        }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id) {
-        if (locacaoRepository.existsById(id)) {
-            locacaoRepository.deleteById(id);
-            return ResponseEntity.noContent().build();
+    public ResponseEntity<Void> excluirLocacao(@PathVariable Long id) {
+        try {
+            locacaoService.excluirLocacao(id);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        return ResponseEntity.notFound().build();
+    }
+
+    private String validarLocacao(Locacao locacao) {
+        if (locacao.getCliente() == null || locacao.getCliente().getId() == null) {
+            return "Cliente é obrigatório.";
+        }
+
+        if (locacao.getVeiculo() == null || locacao.getVeiculo().getId() == null) {
+            return "Veículo é obrigatório.";
+        }
+
+        if (locacao.getDataInicio() == null) {
+            return "Data de início é obrigatória.";
+        }
+
+        if (locacao.getDataFim() == null) {
+            return "Data de fim é obrigatória.";
+        }
+
+        if (locacao.getDataInicio().after(locacao.getDataFim())) {
+            return "Data de início não pode ser depois da data de fim.";
+        }
+
+        return null;
     }
 }

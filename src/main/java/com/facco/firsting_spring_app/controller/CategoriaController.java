@@ -1,11 +1,13 @@
 package com.facco.firsting_spring_app.controller;
 
 import com.facco.firsting_spring_app.model.Categoria;
-import com.facco.firsting_spring_app.repository.CategoriaRepository;
+import com.facco.firsting_spring_app.service.CategoriaService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,48 +16,66 @@ import java.util.Optional;
 public class CategoriaController {
 
     @Autowired
-    private CategoriaRepository categoriaRepository;
+    private CategoriaService categoriaService;
 
-    // Listar todas as categorias
-    @GetMapping
-    public List<Categoria> listar() {
-        return categoriaRepository.findAll();
-    }
-
-    // Criar nova categoria
     @PostMapping
-    public Categoria criar(@RequestBody Categoria categoria) {
-        return categoriaRepository.save(categoria);
+    public ResponseEntity<?> adicionarCategoria(@RequestBody Categoria categoria) {
+        String erro = validarCategoria(categoria);
+        if (erro != null) {
+            return new ResponseEntity<>(erro, HttpStatus.BAD_REQUEST);
+        }
+
+        Categoria categoriaSalva = categoriaService.salvarCategoria(categoria);
+        return new ResponseEntity<>(categoriaSalva, HttpStatus.CREATED);
     }
 
-    // Buscar por ID
-    @GetMapping("/{id}")
-    public ResponseEntity<Categoria> buscarPorId(@PathVariable Long id) {
-        Optional<Categoria> categoria = categoriaRepository.findById(id);
-        return categoria.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
-    }
-
-    // Atualizar categoria
     @PutMapping("/{id}")
-    public ResponseEntity<Categoria> atualizar(@PathVariable Long id, @RequestBody Categoria novaCategoria) {
-        Optional<Categoria> categoriaExistente = categoriaRepository.findById(id);
-        if (categoriaExistente.isPresent()) {
-            Categoria categoria = categoriaExistente.get();
-            categoria.setNome(novaCategoria.getNome());
-            return ResponseEntity.ok(categoriaRepository.save(categoria));
-        } else {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<?> atualizarCategoria(@PathVariable Long id, @RequestBody Categoria categoria) {
+        String erro = validarCategoria(categoria);
+        if (erro != null) {
+            return new ResponseEntity<>(erro, HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            Categoria categoriaAtualizada = categoriaService.atualizarCategoria(id, categoria);
+            return new ResponseEntity<>(categoriaAtualizada, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>("Categoria não encontrada", HttpStatus.NOT_FOUND);
         }
     }
 
-    // Deletar categoria
+    @GetMapping
+    public List<Categoria> listarCategorias() {
+        return categoriaService.listarCategorias();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Categoria> buscarCategoriaPorId(@PathVariable Long id) {
+        Optional<Categoria> categoria = categoriaService.buscarCategoriaPorId(id);
+        return categoria.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id) {
-        if (categoriaRepository.existsById(id)) {
-            categoriaRepository.deleteById(id);
-            return ResponseEntity.noContent().build();
-        } else {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<Void> excluirCategoria(@PathVariable Long id) {
+        try {
+            categoriaService.excluirCategoria(id);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+    }
+
+    // Validação manual da entidade Categoria
+    private String validarCategoria(Categoria categoria) {
+        if (categoria.getNome() == null || categoria.getNome().isBlank()) {
+            return "O nome da categoria é obrigatório";
+        }
+        if (categoria.getPrecoBase() == null || categoria.getPrecoBase().compareTo(BigDecimal.ZERO) < 0) {
+            return "O preço base deve ser maior ou igual a 0";
+        }
+        if (categoria.getLimiteIdade() == null || categoria.getLimiteIdade() < 18) {
+            return "O limite de idade deve ser no mínimo 18";
+        }
+        return null; // tudo certo
     }
 }

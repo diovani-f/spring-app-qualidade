@@ -1,13 +1,14 @@
 package com.facco.firsting_spring_app.controller;
 
 import com.facco.firsting_spring_app.model.Pagamento;
-import com.facco.firsting_spring_app.repository.PagamentoRepository;
-import com.facco.firsting_spring_app.repository.LocacaoRepository;
-import com.facco.firsting_spring_app.model.Locacao;
+import com.facco.firsting_spring_app.service.PagamentoService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,64 +17,74 @@ import java.util.Optional;
 public class PagamentoController {
 
     @Autowired
-    private PagamentoRepository pagamentoRepository;
+    private PagamentoService pagamentoService;
 
-    @Autowired
-    private LocacaoRepository locacaoRepository;
+    @PostMapping
+    public ResponseEntity<?> adicionarPagamento(@RequestBody Pagamento pagamento) {
+        String erro = validarPagamento(pagamento);
+        if (erro != null) {
+            return new ResponseEntity<>(erro, HttpStatus.BAD_REQUEST);
+        }
+
+        Pagamento pagamentoSalvo = pagamentoService.salvarPagamento(pagamento);
+        return new ResponseEntity<>(pagamentoSalvo, HttpStatus.CREATED);
+    }
 
     @GetMapping
-    public List<Pagamento> listarTodos() {
-        return pagamentoRepository.findAll();
+    public List<Pagamento> listarPagamentos() {
+        return pagamentoService.listarPagamentos();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Pagamento> buscarPorId(@PathVariable Long id) {
-        return pagamentoRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    @PostMapping
-    public ResponseEntity<?> criar(@RequestBody Pagamento pagamento) {
-        Optional<Locacao> locacao = locacaoRepository.findById(pagamento.getLocacao().getId());
-        if (locacao.isPresent()) {
-            pagamento.setLocacao(locacao.get());
-            Pagamento salvo = pagamentoRepository.save(pagamento);
-            return ResponseEntity.ok(salvo);
-        } else {
-            return ResponseEntity.badRequest().body("Locação não encontrada");
-        }
+    public ResponseEntity<Pagamento> buscarPagamentoPorId(@PathVariable Long id) {
+        Optional<Pagamento> pagamento = pagamentoService.buscarPagamentoPorId(id);
+        return pagamento.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> atualizar(@PathVariable Long id, @RequestBody Pagamento novoPagamento) {
-        Optional<Pagamento> existente = pagamentoRepository.findById(id);
-        if (existente.isPresent()) {
-            Pagamento pagamento = existente.get();
-            pagamento.setValor(novoPagamento.getValor());
-            pagamento.setFormaPagamento(novoPagamento.getFormaPagamento());
-            pagamento.setStatus(novoPagamento.getStatus());
+    public ResponseEntity<?> atualizarPagamento(@PathVariable Long id, @RequestBody Pagamento pagamento) {
+        String erro = validarPagamento(pagamento);
+        if (erro != null) {
+            return new ResponseEntity<>(erro, HttpStatus.BAD_REQUEST);
+        }
 
-            Optional<Locacao> locacao = locacaoRepository.findById(novoPagamento.getLocacao().getId());
-            if (locacao.isPresent()) {
-                pagamento.setLocacao(locacao.get());
-                return ResponseEntity.ok(pagamentoRepository.save(pagamento));
-            } else {
-                return ResponseEntity.badRequest().body("Locação inválida");
-            }
-
-        } else {
-            return ResponseEntity.notFound().build();
+        try {
+            Pagamento pagamentoAtualizado = pagamentoService.atualizarPagamento(id, pagamento);
+            return new ResponseEntity<>(pagamentoAtualizado, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>("Pagamento não encontrado.", HttpStatus.NOT_FOUND);
         }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id) {
-        if (pagamentoRepository.existsById(id)) {
-            pagamentoRepository.deleteById(id);
-            return ResponseEntity.noContent().build();
-        } else {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<Void> excluirPagamento(@PathVariable Long id) {
+        try {
+            pagamentoService.excluirPagamento(id);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+    }
+
+    // Validação manual de Pagamento
+    private String validarPagamento(Pagamento pagamento) {
+        if (pagamento.getLocacao() == null || pagamento.getLocacao().getId() == null) {
+            return "A locação associada é obrigatória.";
+        }
+
+        if (pagamento.getValor() == null || pagamento.getValor().compareTo(BigDecimal.ZERO) <= 0) {
+            return "O valor do pagamento deve ser maior que zero.";
+        }
+
+        if (pagamento.getDataPagamento() == null) {
+            return "A data do pagamento é obrigatória.";
+        }
+
+        Date hoje = new Date();
+        if (pagamento.getDataPagamento().after(hoje)) {
+            return "A data do pagamento não pode ser no futuro.";
+        }
+
+        return null;
     }
 }

@@ -1,8 +1,9 @@
 package com.facco.firsting_spring_app.model;
 
 import jakarta.persistence.*;
+
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.util.Date;
 
 @Entity
 @Table(name = "locacoes")
@@ -13,56 +14,100 @@ public class Locacao {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "cliente_id", nullable = false)
+    @JoinColumn(name = "cliente_id", referencedColumnName = "id")
     private Cliente cliente;
 
     @ManyToOne
-    @JoinColumn(name = "veiculo_id", nullable = false)
+    @JoinColumn(name = "veiculo_id", referencedColumnName = "id")
     private Veiculo veiculo;
 
-    @Column(name = "data_retirada", nullable = false)
-    private LocalDateTime dataRetirada;
+    private Date dataInicio;
 
-    @Column(name = "data_prevista_devolucao", nullable = false)
-    private LocalDateTime dataPrevistaDevolucao;
+    private Date dataFim;
 
-    @Column(name = "data_real_devolucao")
-    private LocalDateTime dataRealDevolucao;
+    @Enumerated(EnumType.STRING)
+    private StatusLocacao status = StatusLocacao.ABERTA;
 
-    @Column(name = "km_inicial", nullable = false)
-    private int kmInicial;
+    private BigDecimal multa = BigDecimal.ZERO;
 
-    @Column(name = "km_final")
-    private Integer kmFinal;
+    public Locacao() {}
 
-    @Column(name = "valor_total")
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Cliente getCliente() {
+        return cliente;
+    }
+
+    public void setCliente(Cliente cliente) {
+        this.cliente = cliente;
+    }
+
+    public Veiculo getVeiculo() {
+        return veiculo;
+    }
+
+    public void setVeiculo(Veiculo veiculo) {
+        this.veiculo = veiculo;
+    }
+
+    public Date getDataInicio() {
+        return dataInicio;
+    }
+
+    public void setDataInicio(Date dataInicio) {
+        this.dataInicio = dataInicio;
+    }
+
+    public Date getDataFim() {
+        return dataFim;
+    }
+
+    public void setDataFim(Date dataFim) {
+        this.dataFim = dataFim;
+    }
+
+    public StatusLocacao getStatus() {
+        return status;
+    }
+
+    public void setStatus(StatusLocacao status) {
+        this.status = status;
+    }
+
+    public BigDecimal getMulta() {
+        return multa;
+    }
+
+    public void setMulta(BigDecimal multa) {
+        this.multa = multa;
+    }
+
+    @Transient
+    private Long dias;
+
+    @Transient
     private BigDecimal valorTotal;
 
-    // Getters e Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getDias() {
+        return dias;
+    }
 
-    public Cliente getCliente() { return cliente; }
-    public void setCliente(Cliente cliente) { this.cliente = cliente; }
+    public void setDias(Long dias) {
+        this.dias = dias;
+    }
 
-    public Veiculo getVeiculo() { return veiculo; }
-    public void setVeiculo(Veiculo veiculo) { this.veiculo = veiculo; }
+    public BigDecimal getValorTotal() {
+        return valorTotal;
+    }
 
-    public LocalDateTime getDataRetirada() { return dataRetirada; }
-    public void setDataRetirada(LocalDateTime dataRetirada) { this.dataRetirada = dataRetirada; }
-
-    public LocalDateTime getDataPrevistaDevolucao() { return dataPrevistaDevolucao; }
-    public void setDataPrevistaDevolucao(LocalDateTime dataPrevistaDevolucao) { this.dataPrevistaDevolucao = dataPrevistaDevolucao; }
-
-    public LocalDateTime getDataRealDevolucao() { return dataRealDevolucao; }
-    public void setDataRealDevolucao(LocalDateTime dataRealDevolucao) { this.dataRealDevolucao = dataRealDevolucao; }
-
-    public int getKmInicial() { return kmInicial; }
-    public void setKmInicial(int kmInicial) { this.kmInicial = kmInicial; }
-
-    public Integer getKmFinal() { return kmFinal; }
-    public void setKmFinal(Integer kmFinal) { this.kmFinal = kmFinal; }
-
-    public BigDecimal getValorTotal() { return valorTotal; }
-    public void setValorTotal(BigDecimal valorTotal) { this.valorTotal = valorTotal; }
+    public void setValorTotal(BigDecimal valorTotal) {
+        this.valorTotal = valorTotal;
+    }
 }

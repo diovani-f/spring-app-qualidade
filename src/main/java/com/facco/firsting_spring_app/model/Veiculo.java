@@ -2,48 +2,74 @@ package com.facco.firsting_spring_app.model;
 
 import jakarta.persistence.*;
 
+import java.io.Serializable;
+
 @Entity
 @Table(name = "veiculos")
-public class Veiculo {
+public class Veiculo implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String modelo;
-    private String marca;
-    private String placa;
-    private int ano;
-    private int quilometragem;
-    private String cor;
-    private String status;    // disponível, alugado, manutenção, reservado
-    private String categoria; // econômico, SUV, luxo, etc.
 
-    // Getters e setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    @ManyToOne
+    @JoinColumn(name = "categoria_id", nullable = false)
+    private Categoria categoria;
 
-    public String getModelo() { return modelo; }
-    public void setModelo(String modelo) { this.modelo = modelo; }
+    private Integer quilometragem;
 
-    public String getMarca() { return marca; }
-    public void setMarca(String marca) { this.marca = marca; }
+    @Enumerated(EnumType.STRING)
+    private StatusVeiculo status;
 
-    public String getPlaca() { return placa; }
-    public void setPlaca(String placa) { this.placa = placa; }
+    public Veiculo() {}
 
-    public int getAno() { return ano; }
-    public void setAno(int ano) { this.ano = ano; }
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
 
-    public int getQuilometragem() { return quilometragem; }
-    public void setQuilometragem(int quilometragem) { this.quilometragem = quilometragem; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getCor() { return cor; }
-    public void setCor(String cor) { this.cor = cor; }
+    public String getModelo() {
+        return modelo;
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public void setModelo(String modelo) {
+        this.modelo = modelo;
+    }
 
-    public String getCategoria() { return categoria; }
-    public void setCategoria(String categoria) { this.categoria = categoria; }
+    public Categoria getCategoria() {
+        return categoria;
+    }
+
+    public void setCategoria(Categoria categoria) {
+        this.categoria = categoria;
+    }
+
+    public Integer getQuilometragem() {
+        return quilometragem;
+    }
+
+    public void setQuilometragem(Integer quilometragem) {
+        this.quilometragem = quilometragem;
+    }
+
+    public StatusVeiculo getStatus() {
+        return status;
+    }
+
+    public void setStatus(StatusVeiculo status) {
+        this.status = status;
+    }
+
+    public enum StatusVeiculo {
+        DISPONIVEL,
+        INDISPONIVEL,
+        MANUTENCAO,
+        ALUGADO
+    }
 }
